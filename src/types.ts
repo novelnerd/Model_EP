@@ -1,111 +1,260 @@
-// E&P Monte Carlo NPV Simulation Types
+// Enterprise E&P Economics Platform - Core Types
+
+export type DeclineType = 'exponential' | 'hyperbolic' | 'harmonic' | 'arps';
+export type DistributionType = 'normal' | 'lognormal' | 'triangular' | 'uniform' | 'pert';
+export type DepreciationMethod = 'straight_line' | 'wdv' | 'units_of_production' | 'companies_act' | 'user_defined';
+export type FiscalRegimeType = 'nomination' | 'psc' | 'help_oalp' | 'dsf' | 'cbm' | 'revenue_sharing' | 'production_sharing' | 'custom';
+export type DecisionRating = 'green' | 'amber' | 'red';
+export type CalculationEngine = 'native' | 'excel' | 'hybrid';
+
+export interface UncertaintyInput {
+  p10: number;
+  p50: number;
+  p90: number;
+  distribution: DistributionType;
+  min?: number;
+  max?: number;
+}
+
+export interface ProjectInfo {
+  projectName: string;
+  assetName: string;
+  basin: string;
+  country: string;
+  operator: string;
+  workingInterest: number;
+  netRevenueInterest: number;
+  currency: string;
+  economicLife: number;
+  startYear: number;
+  discountRate: number;
+  hurdleRate: number;
+  inflationRate: number;
+  fxRate: number;
+  calculationEngine: CalculationEngine;
+}
 
 export interface ProductionProfile {
-  initialRate: number; // bbl/day or boe/day
-  declineRate: number; // annual decline rate (%)
-  declineType: 'exponential' | 'hyperbolic' | 'harmonic';
-  hyperbolicExponent: number; // b factor for hyperbolic decline
-  minRate: number; // economic limit rate (bbl/day)
+  oil: UncertaintyInput;
+  gas: UncertaintyInput;
+  condensate: UncertaintyInput;
+  ngl: UncertaintyInput;
+  water: UncertaintyInput;
+  gor: number;
+  wor: number;
+  recoveryFactor: UncertaintyInput;
+  declineType: DeclineType;
+  declineRate: UncertaintyInput;
+  hyperbolicExponent: number;
+  plateauYears: number;
+  economicLimit: number;
 }
 
 export interface PriceAssumptions {
-  oilPrice: number; // $/bbl
-  gasPrice: number; // $/Mcf
-  nglPrice: number; // $/bbl
-  oilPriceStdDev: number; // standard deviation %
-  gasPriceStdDev: number;
-  nglPriceStdDev: number;
-  oilEscalation: number; // annual escalation %
-  gasEscalation: number;
-  nglEscalation: number;
-  oilGasRatio: number; // bbl oil per Mcf gas
-  nglRatio: number; // bbl NGL per bbl oil
+  oil: { base: number; escalation: number; stdDev: number; distribution: DistributionType; forwardCurve?: number[] };
+  gas: { base: number; escalation: number; stdDev: number; distribution: DistributionType; forwardCurve?: number[] };
+  condensate: { base: number; escalation: number; stdDev: number; distribution: DistributionType };
+  ngl: { base: number; escalation: number; stdDev: number; distribution: DistributionType };
+  carbonCredits: { base: number; escalation: number; stdDev: number };
+  oilGasRatio: number;
+  nglRatio: number;
 }
 
-export interface CostAssumptions {
-  opexPerBarrel: number; // $/boe
-  opexStdDev: number; // %
-  opexEscalation: number; // annual %
-  fixedOpex: number; // $/month
-  transportationCost: number; // $/boe
-  severanceTaxRate: number; // %
-  adValoremTaxRate: number; // %
+export interface CapexItem {
+  category: string;
+  year: number;
+  amount: number;
+  escalation: number;
+  distribution: DistributionType;
+  stdDev: number;
 }
 
 export interface CapexAssumptions {
-  initialCapex: number; // $
-  capexStdDev: number; // %
-  workoverCapex: number; // $ per workover
-  workoverFrequency: number; // years between workovers
-  abandonmentCost: number; // $
-  salvageValue: number; // $
+  items: CapexItem[];
+  exploration: number;
+  drilling: number;
+  facilities: number;
+  pipelines: number;
+  subsea: number;
+  compression: number;
+  processing: number;
+  brownfield: number;
+  workovers: number;
+  abandonment: number;
+  decommissioning: number;
+  idc: number;
+  contingency: number;
+  ownerCost: number;
+  totalCapexStdDev: number;
+}
+
+export interface OpexItem {
+  category: string;
+  baseValue: number;
+  escalation: number;
+  distribution: DistributionType;
+  stdDev: number;
+  isFixed: boolean;
+}
+
+export interface OpexAssumptions {
+  items: OpexItem[];
+  fixedOpex: number;
+  variableOpex: number;
+  transportation: number;
+  tolling: number;
+  power: number;
+  maintenance: number;
+  chemicals: number;
+  logistics: number;
+  personnel: number;
+  insurance: number;
+  gna: number;
+  carbonCost: number;
+  totalOpexStdDev: number;
+  inflationRate: number;
 }
 
 export interface FiscalRegime {
-  discountRate: number; // WACC %
-  incomeTaxRate: number; // %
-  royaltyRate: number; // %
-  depreciationMethod: 'straight_line' | 'units_of_production';
+  id: string;
+  name: string;
+  type: FiscalRegimeType;
+  description: string;
+  royaltyRate: number;
+  oidbCess: number;
+  revenueShare: number;
+  productionShare: number;
+  corporateTaxRate: number;
+  deferredTax: boolean;
+  gstRate: number;
+  windfallLevy: number;
+  carbonTax: number;
+  customsDuty: number;
+  taxHolidayYears: number;
+  lossCarryForwardYears: number;
+  depreciationMethod: DepreciationMethod;
   depreciationYears: number;
-  workingInterest: number; // %
-  netRevenueInterest: number; // %
+  wdvRate: number;
+  additionalRounds: number;
+  investmentMultiple?: number;
+  costOilLimit?: number;
+  profitOilSplit?: { operator: number; government: number }[];
 }
 
 export interface SimulationInputs {
+  project: ProjectInfo;
   production: ProductionProfile;
   prices: PriceAssumptions;
-  costs: CostAssumptions;
   capex: CapexAssumptions;
+  opex: OpexAssumptions;
   fiscal: FiscalRegime;
-  simulationYears: number;
   numIterations: number;
+  correlationMatrix?: Record<string, Record<string, number>>;
 }
 
 export interface YearlyCashFlow {
   year: number;
-  productionRate: number; // boe/day
-  annualProduction: number; // boe
+  period: string;
+  oilProduction: number;
+  gasProduction: number;
+  condensateProduction: number;
+  nglProduction: number;
+  totalProduction: number;
+  waterProduction: number;
   oilRevenue: number;
   gasRevenue: number;
+  condensateRevenue: number;
   nglRevenue: number;
+  carbonCreditRevenue: number;
   grossRevenue: number;
   royalty: number;
+  oidbCess: number;
+  revenueShare: number;
   netRevenue: number;
   opex: number;
   transportation: number;
-  severanceTax: number;
-  adValoremTax: number;
+  carbonCost: number;
   ebitda: number;
-  capex: number;
+  ebitdax: number;
   depreciation: number;
   taxableIncome: number;
-  incomeTax: number;
-  netCashFlow: number;
+  lossCarryForward: number;
+  corporateTax: number;
+  deferredTax: number;
+  freeCashFlow: number;
+  projectCashFlow: number;
+  equityCashFlow: number;
+  capex: number;
   cumulativeCashFlow: number;
   discountFactor: number;
   discountedCashFlow: number;
-  cumulativeDiscountedCF: number;
+  cumulativeDcf: number;
+  formulas: Record<string, string>;
 }
 
-export interface CashFlowWithFormulas extends YearlyCashFlow {
-  formulas: Record<string, string>;
+export interface EconomicMetrics {
+  npv: number;
+  irr: number;
+  mirr: number;
+  profitabilityIndex: number;
+  paybackPeriod: number;
+  discountedPayback: number;
+  breakevenOilPrice: number;
+  breakevenGasPrice: number;
+  breakevenProduction: number;
+  valuePerBoe: number;
+  valuePerMscf: number;
+  ebitdaMargin: number;
+  opexPerBoe: number;
+  findingDevelopmentCost: number;
+}
+
+export interface RiskMetrics {
+  meanNpv: number;
+  medianNpv: number;
+  stdDevNpv: number;
+  p10Npv: number;
+  p50Npv: number;
+  p90Npv: number;
+  meanIrr: number;
+  medianIrr: number;
+  p10Irr: number;
+  p50Irr: number;
+  p90Irr: number;
+  probabilityNpvPositive: number;
+  probabilityIrrAboveHurdle: number;
+  paybackProbability: number;
+  valueAtRisk95: number;
+  conditionalVaR95: number;
+  coefficientOfVariation: number;
+  skewness: number;
+  kurtosis: number;
+}
+
+export interface Scenario {
+  id: string;
+  name: string;
+  description: string;
+  category: 'base' | 'optimistic' | 'pessimistic' | 'bull' | 'bear' | 'custom';
+  inputs: Partial<SimulationInputs>;
+  metrics?: EconomicMetrics;
+  riskMetrics?: RiskMetrics;
+  color: string;
 }
 
 export interface SimulationResult {
   npvValues: number[];
   irrValues: number[];
   paybackPeriods: number[];
-  meanNPV: number;
-  medianNPV: number;
-  stdDevNPV: number;
-  p10NPV: number;
-  p50NPV: number;
-  p90NPV: number;
-  probabilityOfLoss: number;
   cashFlows: YearlyCashFlow[];
-  cashFlowsWithFormulas: CashFlowWithFormulas[];
-  inputs: SimulationInputs;
+  deterministicMetrics: EconomicMetrics;
+  riskMetrics: RiskMetrics;
   tornadoData: TornadoItem[];
+  spiderData: SpiderItem[];
+  heatmapData: HeatmapCell[];
+  inputs: SimulationInputs;
+  scenario?: Scenario;
+  timestamp: Date;
 }
 
 export interface TornadoItem {
@@ -113,11 +262,33 @@ export interface TornadoItem {
   lowValue: number;
   highValue: number;
   impact: number;
+  percentChange: number;
 }
 
-export interface HistogramBin {
-  binStart: number;
-  binEnd: number;
-  count: number;
-  label: string;
+export interface SpiderItem {
+  parameter: string;
+  changes: { percent: number; npv: number }[];
+}
+
+export interface HeatmapCell {
+  x: string;
+  y: string;
+  value: number;
+}
+
+export interface AuditEntry {
+  id: string;
+  timestamp: Date;
+  user: string;
+  action: string;
+  module: string;
+  details: string;
+  oldValue?: string;
+  newValue?: string;
+}
+
+export interface CorrelationPair {
+  param1: string;
+  param2: string;
+  coefficient: number;
 }

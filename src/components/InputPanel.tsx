@@ -11,10 +11,11 @@ interface InputPanelProps {
 
 const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulation, isRunning }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    project: true,
     production: true,
     prices: true,
-    costs: true,
-    capex: true,
+    capex: false,
+    opex: false,
     fiscal: true,
     simulation: true,
   });
@@ -23,27 +24,40 @@ const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulati
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const updateNested = (section: string, key: string, value: number | string) => {
-    const newInputs = { ...inputs };
-    if (section === '') {
-      // Top-level properties (simulationYears, numIterations)
-      (newInputs as any)[key] = value;
-    } else {
-      (newInputs as any)[section] = { ...(newInputs as any)[section], [key]: value };
-    }
-    onChange(newInputs);
+  const updateProject = (key: string, value: any) => {
+    onChange({ ...inputs, project: { ...inputs.project, [key]: value } });
+  };
+
+  const updateProduction = (key: string, value: any) => {
+    onChange({ ...inputs, production: { ...inputs.production, [key]: value } });
+  };
+
+  const updatePrices = (commodity: string, key: string, value: any) => {
+    const current = (inputs.prices as any)[commodity];
+    onChange({ ...inputs, prices: { ...inputs.prices, [commodity]: { ...current, [key]: value } } });
+  };
+
+  const updateCapex = (key: string, value: any) => {
+    onChange({ ...inputs, capex: { ...inputs.capex, [key]: value } });
+  };
+
+  const updateOpex = (key: string, value: any) => {
+    onChange({ ...inputs, opex: { ...inputs.opex, [key]: value } });
+  };
+
+  const updateFiscal = (key: string, value: any) => {
+    onChange({ ...inputs, fiscal: { ...inputs.fiscal, [key]: value } });
   };
 
   const NumberInput: React.FC<{
-    section: string;
-    field: string;
     label: string;
     value: number;
+    onChange: (value: number) => void;
     step?: number;
     suffix?: string;
     min?: number;
     max?: number;
-  }> = ({ section, field, label, value, step = 1, suffix = '', min, max }) => (
+  }> = ({ label, value, onChange, step = 1, suffix = '', min, max }) => (
     <div className="flex flex-col gap-1">
       <label className="text-xs font-medium text-gray-400">{label}</label>
       <div className="flex items-center gap-1">
@@ -53,7 +67,7 @@ const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulati
           step={step}
           min={min}
           max={max}
-          onChange={(e) => updateNested(section, field, parseFloat(e.target.value) || 0)}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
           className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:border-blue-500 focus:outline-none"
         />
         {suffix && <span className="text-xs text-gray-500 whitespace-nowrap">{suffix}</span>}
@@ -79,17 +93,36 @@ const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulati
         <span>⚙️</span> Model Parameters
       </h2>
 
+      {/* Project Info */}
+      <SectionHeader id="project" title="Project Information" icon="📋" />
+      {expandedSections.project && (
+        <div className="grid grid-cols-2 gap-2 mb-4 p-2">
+          <NumberInput label="Economic Life" value={inputs.project.economicLife} onChange={(v) => updateProject('economicLife', v)} step={1} suffix="yrs" />
+          <NumberInput label="Discount Rate" value={inputs.project.discountRate} onChange={(v) => updateProject('discountRate', v)} step={0.5} suffix="%" />
+          <NumberInput label="Hurdle Rate" value={inputs.project.hurdleRate} onChange={(v) => updateProject('hurdleRate', v)} step={0.5} suffix="%" />
+          <NumberInput label="Working Interest" value={inputs.project.workingInterest} onChange={(v) => updateProject('workingInterest', v)} step={1} suffix="%" />
+          <NumberInput label="Net Revenue Interest" value={inputs.project.netRevenueInterest} onChange={(v) => updateProject('netRevenueInterest', v)} step={1} suffix="%" />
+          <NumberInput label="Inflation Rate" value={inputs.project.inflationRate} onChange={(v) => updateProject('inflationRate', v)} step={0.5} suffix="%" />
+        </div>
+      )}
+
       {/* Production */}
       <SectionHeader id="production" title="Production Profile" icon="🛢️" />
       {expandedSections.production && (
         <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="production" field="initialRate" label="Initial Rate" value={inputs.production.initialRate} step={50} suffix="boe/d" />
-          <NumberInput section="production" field="declineRate" label="Decline Rate" value={inputs.production.declineRate} step={1} suffix="%/yr" />
+          <NumberInput label="Initial Oil Rate (P50)" value={inputs.production.oil.p50} onChange={(v) => updateProduction('oil', { ...inputs.production.oil, p50: v })} step={50} suffix="bopd" />
+          <NumberInput label="Oil P10" value={inputs.production.oil.p10} onChange={(v) => updateProduction('oil', { ...inputs.production.oil, p10: v })} step={50} suffix="bopd" />
+          <NumberInput label="Oil P90" value={inputs.production.oil.p90} onChange={(v) => updateProduction('oil', { ...inputs.production.oil, p90: v })} step={50} suffix="bopd" />
+          <NumberInput label="Decline Rate (P50)" value={inputs.production.declineRate.p50} onChange={(v) => updateProduction('declineRate', { ...inputs.production.declineRate, p50: v })} step={1} suffix="%/yr" />
+          <NumberInput label="GOR" value={inputs.production.gor} onChange={(v) => updateProduction('gor', v)} step={100} suffix="scf/bbl" />
+          <NumberInput label="WOR" value={inputs.production.wor} onChange={(v) => updateProduction('wor', v)} step={0.1} suffix="bbl/bbl" />
+          <NumberInput label="Plateau Years" value={inputs.production.plateauYears} onChange={(v) => updateProduction('plateauYears', v)} step={1} suffix="yrs" />
+          <NumberInput label="Economic Limit" value={inputs.production.economicLimit} onChange={(v) => updateProduction('economicLimit', v)} step={10} suffix="bopd" />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-400">Decline Type</label>
             <select
               value={inputs.production.declineType}
-              onChange={(e) => updateNested('production', 'declineType', e.target.value)}
+              onChange={(e) => updateProduction('declineType', e.target.value)}
               className="bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
             >
               <option value="exponential">Exponential</option>
@@ -97,8 +130,7 @@ const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulati
               <option value="harmonic">Harmonic</option>
             </select>
           </div>
-          <NumberInput section="production" field="hyperbolicExponent" label="b-Factor" value={inputs.production.hyperbolicExponent} step={0.1} min={0} max={2} />
-          <NumberInput section="production" field="minRate" label="Econ. Limit" value={inputs.production.minRate} step={10} suffix="boe/d" />
+          <NumberInput label="Hyperbolic b" value={inputs.production.hyperbolicExponent} onChange={(v) => updateProduction('hyperbolicExponent', v)} step={0.1} min={0} max={2} />
         </div>
       )}
 
@@ -106,74 +138,73 @@ const InputPanel: React.FC<InputPanelProps> = ({ inputs, onChange, onRunSimulati
       <SectionHeader id="prices" title="Price Assumptions" icon="💰" />
       {expandedSections.prices && (
         <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="prices" field="oilPrice" label="Oil Price" value={inputs.prices.oilPrice} step={1} suffix="$/bbl" />
-          <NumberInput section="prices" field="gasPrice" label="Gas Price" value={inputs.prices.gasPrice} step={0.25} suffix="$/Mcf" />
-          <NumberInput section="prices" field="nglPrice" label="NGL Price" value={inputs.prices.nglPrice} step={1} suffix="$/bbl" />
-          <NumberInput section="prices" field="oilPriceStdDev" label="Oil Price σ" value={inputs.prices.oilPriceStdDev} step={1} suffix="%" />
-          <NumberInput section="prices" field="gasPriceStdDev" label="Gas Price σ" value={inputs.prices.gasPriceStdDev} step={1} suffix="%" />
-          <NumberInput section="prices" field="oilEscalation" label="Oil Escalation" value={inputs.prices.oilEscalation} step={0.5} suffix="%/yr" />
-          <NumberInput section="prices" field="gasEscalation" label="Gas Escalation" value={inputs.prices.gasEscalation} step={0.5} suffix="%/yr" />
-          <NumberInput section="prices" field="oilGasRatio" label="Gas/Oil Ratio" value={inputs.prices.oilGasRatio} step={0.05} suffix="" />
-          <NumberInput section="prices" field="nglRatio" label="NGL Ratio" value={inputs.prices.nglRatio} step={0.05} suffix="" />
+          <NumberInput label="Oil Price (Base)" value={inputs.prices.oil.base} onChange={(v) => updatePrices('oil', 'base', v)} step={1} suffix="$/bbl" />
+          <NumberInput label="Oil Escalation" value={inputs.prices.oil.escalation} onChange={(v) => updatePrices('oil', 'escalation', v)} step={0.5} suffix="%/yr" />
+          <NumberInput label="Gas Price (Base)" value={inputs.prices.gas.base} onChange={(v) => updatePrices('gas', 'base', v)} step={0.25} suffix="$/Mcf" />
+          <NumberInput label="Gas Escalation" value={inputs.prices.gas.escalation} onChange={(v) => updatePrices('gas', 'escalation', v)} step={0.5} suffix="%/yr" />
+          <NumberInput label="NGL Price" value={inputs.prices.ngl.base} onChange={(v) => updatePrices('ngl', 'base', v)} step={1} suffix="$/bbl" />
+          <NumberInput label="NGL Ratio" value={inputs.prices.nglRatio} onChange={(v) => onChange({ ...inputs, prices: { ...inputs.prices, nglRatio: v } })} step={0.05} />
         </div>
       )}
 
-      {/* Costs */}
-      <SectionHeader id="costs" title="Operating Costs" icon="📊" />
-      {expandedSections.costs && (
-        <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="costs" field="opexPerBarrel" label="Opex" value={inputs.costs.opexPerBarrel} step={0.5} suffix="$/boe" />
-          <NumberInput section="costs" field="opexStdDev" label="Opex σ" value={inputs.costs.opexStdDev} step={1} suffix="%" />
-          <NumberInput section="costs" field="fixedOpex" label="Fixed Opex" value={inputs.costs.fixedOpex} step={500} suffix="$/mo" />
-          <NumberInput section="costs" field="transportationCost" label="Transport" value={inputs.costs.transportationCost} step={0.25} suffix="$/boe" />
-          <NumberInput section="costs" field="severanceTaxRate" label="Severance Tax" value={inputs.costs.severanceTaxRate} step={0.5} suffix="%" />
-          <NumberInput section="costs" field="adValoremTaxRate" label="Ad Valorem" value={inputs.costs.adValoremTaxRate} step={0.25} suffix="%" />
-        </div>
-      )}
-
-      {/* Capex */}
+      {/* CAPEX */}
       <SectionHeader id="capex" title="Capital Expenditure" icon="🏗️" />
       {expandedSections.capex && (
         <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="capex" field="initialCapex" label="Initial Capex" value={inputs.capex.initialCapex} step={100000} suffix="$" />
-          <NumberInput section="capex" field="capexStdDev" label="Capex σ" value={inputs.capex.capexStdDev} step={1} suffix="%" />
-          <NumberInput section="capex" field="workoverCapex" label="Workover Cost" value={inputs.capex.workoverCapex} step={10000} suffix="$" />
-          <NumberInput section="capex" field="workoverFrequency" label="WO Frequency" value={inputs.capex.workoverFrequency} step={1} suffix="yrs" />
-          <NumberInput section="capex" field="abandonmentCost" label="Abandonment" value={inputs.capex.abandonmentCost} step={10000} suffix="$" />
-          <NumberInput section="capex" field="salvageValue" label="Salvage Value" value={inputs.capex.salvageValue} step={5000} suffix="$" />
+          <NumberInput label="Exploration" value={inputs.capex.exploration} onChange={(v) => updateCapex('exploration', v)} step={100000} suffix="$" />
+          <NumberInput label="Drilling" value={inputs.capex.drilling} onChange={(v) => updateCapex('drilling', v)} step={100000} suffix="$" />
+          <NumberInput label="Facilities" value={inputs.capex.facilities} onChange={(v) => updateCapex('facilities', v)} step={100000} suffix="$" />
+          <NumberInput label="Pipelines" value={inputs.capex.pipelines} onChange={(v) => updateCapex('pipelines', v)} step={100000} suffix="$" />
+          <NumberInput label="Workovers" value={inputs.capex.workovers} onChange={(v) => updateCapex('workovers', v)} step={50000} suffix="$" />
+          <NumberInput label="Abandonment" value={inputs.capex.abandonment} onChange={(v) => updateCapex('abandonment', v)} step={50000} suffix="$" />
+          <NumberInput label="Contingency" value={inputs.capex.contingency} onChange={(v) => updateCapex('contingency', v)} step={50000} suffix="$" />
+          <NumberInput label="CAPEX σ" value={inputs.capex.totalCapexStdDev} onChange={(v) => updateCapex('totalCapexStdDev', v)} step={1} suffix="%" />
+        </div>
+      )}
+
+      {/* OPEX */}
+      <SectionHeader id="opex" title="Operating Costs" icon="📊" />
+      {expandedSections.opex && (
+        <div className="grid grid-cols-2 gap-2 mb-4 p-2">
+          <NumberInput label="Fixed Opex" value={inputs.opex.fixedOpex} onChange={(v) => updateOpex('fixedOpex', v)} step={1000} suffix="$/yr" />
+          <NumberInput label="Variable Opex" value={inputs.opex.variableOpex} onChange={(v) => updateOpex('variableOpex', v)} step={0.5} suffix="$/bbl" />
+          <NumberInput label="Transportation" value={inputs.opex.transportation} onChange={(v) => updateOpex('transportation', v)} step={0.25} suffix="$/bbl" />
+          <NumberInput label="Carbon Cost" value={inputs.opex.carbonCost} onChange={(v) => updateOpex('carbonCost', v)} step={0.5} suffix="$/bbl" />
+          <NumberInput label="Inflation Rate" value={inputs.opex.inflationRate} onChange={(v) => updateOpex('inflationRate', v)} step={0.5} suffix="%/yr" />
+          <NumberInput label="OPEX σ" value={inputs.opex.totalOpexStdDev} onChange={(v) => updateOpex('totalOpexStdDev', v)} step={1} suffix="%" />
         </div>
       )}
 
       {/* Fiscal */}
-      <SectionHeader id="fiscal" title="Fiscal Regime" icon="📋" />
+      <SectionHeader id="fiscal" title="Fiscal Regime" icon="📜" />
       {expandedSections.fiscal && (
         <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="fiscal" field="discountRate" label="Discount Rate" value={inputs.fiscal.discountRate} step={0.5} suffix="%" />
-          <NumberInput section="fiscal" field="incomeTaxRate" label="Tax Rate" value={inputs.fiscal.incomeTaxRate} step={1} suffix="%" />
-          <NumberInput section="fiscal" field="royaltyRate" label="Royalty Rate" value={inputs.fiscal.royaltyRate} step={0.5} suffix="%" />
-          <NumberInput section="fiscal" field="workingInterest" label="Working Interest" value={inputs.fiscal.workingInterest} step={1} suffix="%" />
-          <NumberInput section="fiscal" field="netRevenueInterest" label="Net Rev. Interest" value={inputs.fiscal.netRevenueInterest} step={1} suffix="%" />
+          <NumberInput label="Royalty Rate" value={inputs.fiscal.royaltyRate} onChange={(v) => updateFiscal('royaltyRate', v)} step={0.5} suffix="%" />
+          <NumberInput label="OIDB Cess" value={inputs.fiscal.oidbCess} onChange={(v) => updateFiscal('oidbCess', v)} step={0.25} suffix="%" />
+          <NumberInput label="Corporate Tax" value={inputs.fiscal.corporateTaxRate} onChange={(v) => updateFiscal('corporateTaxRate', v)} step={1} suffix="%" />
+          <NumberInput label="Tax Holiday" value={inputs.fiscal.taxHolidayYears} onChange={(v) => updateFiscal('taxHolidayYears', v)} step={1} suffix="yrs" />
+          <NumberInput label="Depreciation Years" value={inputs.fiscal.depreciationYears} onChange={(v) => updateFiscal('depreciationYears', v)} step={1} suffix="yrs" />
+          <NumberInput label="WDV Rate" value={inputs.fiscal.wdvRate} onChange={(v) => updateFiscal('wdvRate', v)} step={1} suffix="%" />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-400">Depr. Method</label>
             <select
               value={inputs.fiscal.depreciationMethod}
-              onChange={(e) => updateNested('fiscal', 'depreciationMethod', e.target.value)}
+              onChange={(e) => updateFiscal('depreciationMethod', e.target.value)}
               className="bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
             >
               <option value="straight_line">Straight Line</option>
+              <option value="wdv">Written Down Value</option>
               <option value="units_of_production">Units of Production</option>
             </select>
           </div>
-          <NumberInput section="fiscal" field="depreciationYears" label="Depr. Life" value={inputs.fiscal.depreciationYears} step={1} suffix="yrs" />
         </div>
       )}
 
       {/* Simulation */}
       <SectionHeader id="simulation" title="Simulation Settings" icon="🎲" />
       {expandedSections.simulation && (
-        <div className="grid grid-cols-2 gap-2 mb-4 p-2">
-          <NumberInput section="" field="simulationYears" label="Years" value={inputs.simulationYears} step={1} suffix="yrs" min={1} max={50} />
-          <NumberInput section="" field="numIterations" label="Iterations" value={inputs.numIterations} step={100} suffix="" min={100} max={10000} />
+        <div className="grid grid-cols-1 gap-2 mb-4 p-2">
+          <NumberInput label="Number of Iterations" value={inputs.numIterations} onChange={(v) => onChange({ ...inputs, numIterations: v })} step={100} min={100} max={100000} />
         </div>
       )}
 

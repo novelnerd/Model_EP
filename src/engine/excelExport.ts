@@ -1,54 +1,62 @@
 import * as XLSX from 'xlsx';
-import { SimulationResult, SimulationInputs } from '../types';
+import { SimulationResult } from '../types';
 
 export function exportToExcel(result: SimulationResult) {
   const wb = XLSX.utils.book_new();
-  const { inputs, cashFlows, cashFlowsWithFormulas } = result;
+  const { inputs, cashFlows, riskMetrics, deterministicMetrics, tornadoData } = result;
 
   // Sheet 1: Summary
-  const summaryData = [
-    ['E&P Monte Carlo NPV Simulation - Summary Report'],
+  const summaryData: any[][] = [
+    ['E&P Enterprise Monte Carlo NPV Simulation - Executive Summary'],
     [''],
-    ['Simulation Parameters'],
+    ['Project Information'],
+    ['Project Name', inputs.project.projectName],
+    ['Asset Name', inputs.project.assetName],
+    ['Basin', inputs.project.basin],
+    ['Country', inputs.project.country],
+    ['Operator', inputs.project.operator],
+    ['Working Interest (%)', inputs.project.workingInterest],
+    ['Net Revenue Interest (%)', inputs.project.netRevenueInterest],
+    ['Currency', inputs.project.currency],
+    ['Economic Life (Years)', inputs.project.economicLife],
+    ['Discount Rate / WACC (%)', inputs.project.discountRate],
+    ['Hurdle Rate (%)', inputs.project.hurdleRate],
+    [''],
+    ['Monte Carlo Results'],
     ['Number of Iterations', inputs.numIterations],
-    ['Simulation Period (Years)', inputs.simulationYears],
+    ['Mean NPV', riskMetrics.meanNpv],
+    ['Median NPV (P50)', riskMetrics.medianNpv],
+    ['Standard Deviation', riskMetrics.stdDevNpv],
+    ['P10 NPV (Upside)', riskMetrics.p10Npv],
+    ['P50 NPV (Base Case)', riskMetrics.p50Npv],
+    ['P90 NPV (Downside)', riskMetrics.p90Npv],
+    ['Probability NPV > 0 (%)', riskMetrics.probabilityNpvPositive],
+    ['Mean IRR (%)', riskMetrics.meanIrr],
+    ['Value at Risk 95%', riskMetrics.valueAtRisk95],
+    ['Conditional VaR 95%', riskMetrics.conditionalVaR95],
     [''],
-    ['NPV Results (Monte Carlo)'],
-    ['Mean NPV', result.meanNPV],
-    ['Median NPV (P50)', result.medianNPV],
-    ['Standard Deviation', result.stdDevNPV],
-    ['P10 NPV (Upside)', result.p10NPV],
-    ['P50 NPV (Base Case)', result.p50NPV],
-    ['P90 NPV (Downside)', result.p90NPV],
-    ['Probability of Loss (%)', result.probabilityOfLoss],
-    [''],
-    ['Key Input Assumptions'],
-    ['Initial Production Rate (boe/d)', inputs.production.initialRate],
-    ['Decline Rate (%)', inputs.production.declineRate],
-    ['Decline Type', inputs.production.declineType],
-    ['Oil Price ($/bbl)', inputs.prices.oilPrice],
-    ['Gas Price ($/Mcf)', inputs.prices.gasPrice],
-    ['NGL Price ($/bbl)', inputs.prices.nglPrice],
-    ['Opex ($/boe)', inputs.costs.opexPerBarrel],
-    ['Initial Capex ($)', inputs.capex.initialCapex],
-    ['Discount Rate / WACC (%)', inputs.fiscal.discountRate],
-    ['Royalty Rate (%)', inputs.fiscal.royaltyRate],
-    ['Income Tax Rate (%)', inputs.fiscal.incomeTaxRate],
-    ['Working Interest (%)', inputs.fiscal.workingInterest],
-    ['Net Revenue Interest (%)', inputs.fiscal.netRevenueInterest],
+    ['Deterministic Economics'],
+    ['NPV', deterministicMetrics.npv],
+    ['IRR (%)', deterministicMetrics.irr],
+    ['MIRR (%)', deterministicMetrics.mirr],
+    ['Profitability Index', deterministicMetrics.profitabilityIndex],
+    ['Payback Period (Years)', deterministicMetrics.paybackPeriod],
+    ['Discounted Payback (Years)', deterministicMetrics.discountedPayback],
+    ['Breakeven Oil Price ($/bbl)', deterministicMetrics.breakevenOilPrice],
+    ['Value per BOE', deterministicMetrics.valuePerBoe],
+    ['EBITDA Margin (%)', deterministicMetrics.ebitdaMargin],
   ];
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
   wsSummary['!cols'] = [{ wch: 35 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Executive Summary');
 
-  // Sheet 2: Cash Flow (Values)
+  // Sheet 2: Cash Flow
   const cfHeaders = [
-    'Year', 'Prod Rate (boe/d)', 'Annual Prod (boe)', 'Oil Revenue ($)', 'Gas Revenue ($)',
-    'NGL Revenue ($)', 'Gross Revenue ($)', 'Royalty ($)', 'Net Revenue ($)',
-    'Opex ($)', 'Transportation ($)', 'Severance Tax ($)', 'Ad Valorem Tax ($)',
-    'EBITDA ($)', 'Capex ($)', 'Depreciation ($)', 'Taxable Income ($)',
-    'Income Tax ($)', 'Net Cash Flow ($)', 'Cumulative CF ($)',
+    'Year', 'Oil Prod (bbl)', 'Gas Prod (Mcf)', 'Oil Revenue ($)', 'Gas Revenue ($)',
+    'Gross Revenue ($)', 'Royalty ($)', 'OIDB Cess ($)', 'Net Revenue ($)',
+    'Opex ($)', 'EBITDA ($)', 'Capex ($)', 'Depreciation ($)', 'Corporate Tax ($)',
+    'Free Cash Flow ($)', 'Project CF ($)', 'Cumulative CF ($)',
     'Discount Factor', 'Discounted CF ($)', 'Cumulative DCF ($)'
   ];
 
@@ -56,28 +64,25 @@ export function exportToExcel(result: SimulationResult) {
   for (const cf of cashFlows) {
     cfData.push([
       cf.year + 1,
-      Math.round(cf.productionRate * 100) / 100,
-      Math.round(cf.annualProduction),
+      Math.round(cf.oilProduction),
+      Math.round(cf.gasProduction),
       Math.round(cf.oilRevenue),
       Math.round(cf.gasRevenue),
-      Math.round(cf.nglRevenue),
       Math.round(cf.grossRevenue),
       Math.round(cf.royalty),
+      Math.round(cf.oidbCess),
       Math.round(cf.netRevenue),
       Math.round(cf.opex),
-      Math.round(cf.transportation),
-      Math.round(cf.severanceTax),
-      Math.round(cf.adValoremTax),
       Math.round(cf.ebitda),
       Math.round(cf.capex),
       Math.round(cf.depreciation),
-      Math.round(cf.taxableIncome),
-      Math.round(cf.incomeTax),
-      Math.round(cf.netCashFlow),
+      Math.round(cf.corporateTax),
+      Math.round(cf.freeCashFlow),
+      Math.round(cf.projectCashFlow),
       Math.round(cf.cumulativeCashFlow),
       Math.round(cf.discountFactor * 10000) / 10000,
       Math.round(cf.discountedCashFlow),
-      Math.round(cf.cumulativeDiscountedCF),
+      Math.round(cf.cumulativeDcf),
     ]);
   }
 
@@ -85,42 +90,33 @@ export function exportToExcel(result: SimulationResult) {
   wsCF['!cols'] = cfHeaders.map(() => ({ wch: 18 }));
   XLSX.utils.book_append_sheet(wb, wsCF, 'Cash Flow');
 
-  // Sheet 3: Formulas (Audit Trail)
+  // Sheet 3: Formulas
   const formulaHeaders = [
-    'Year', 'Prod Rate Formula', 'Annual Prod Formula', 'Oil Revenue Formula', 'Gas Revenue Formula',
-    'NGL Revenue Formula', 'Gross Revenue Formula', 'Royalty Formula', 'Net Revenue Formula',
-    'Opex Formula', 'Transportation Formula', 'Sev Tax Formula', 'Ad Val Tax Formula',
-    'EBITDA Formula', 'Capex Formula', 'Depreciation Formula', 'Taxable Income Formula',
-    'Income Tax Formula', 'Net Cash Flow Formula', 'Cumulative CF Formula',
-    'Discount Factor Formula', 'Discounted CF Formula', 'Cumulative DCF Formula'
+    'Year', 'Oil Prod', 'Gas Prod', 'Oil Revenue', 'Gas Revenue',
+    'Gross Revenue', 'Royalty', 'Net Revenue', 'Opex', 'EBITDA',
+    'Depreciation', 'Taxable Income', 'Corporate Tax', 'Free Cash Flow',
+    'Discount Factor', 'Discounted CF'
   ];
 
   const formulaData: any[][] = [formulaHeaders];
-  for (const cf of cashFlowsWithFormulas) {
+  for (const cf of cashFlows) {
     formulaData.push([
       cf.year + 1,
-      cf.formulas.productionRate,
-      cf.formulas.annualProduction,
+      cf.formulas.oilProduction,
+      cf.formulas.gasProduction,
       cf.formulas.oilRevenue,
       cf.formulas.gasRevenue,
-      cf.formulas.nglRevenue,
       cf.formulas.grossRevenue,
       cf.formulas.royalty,
       cf.formulas.netRevenue,
       cf.formulas.opex,
-      cf.formulas.transportation,
-      cf.formulas.severanceTax,
-      cf.formulas.adValoremTax,
       cf.formulas.ebitda,
-      cf.formulas.capex,
       cf.formulas.depreciation,
       cf.formulas.taxableIncome,
-      cf.formulas.incomeTax,
-      cf.formulas.netCashFlow,
-      cf.formulas.cumulativeCashFlow,
+      cf.formulas.corporateTax,
+      cf.formulas.freeCashFlow,
       cf.formulas.discountFactor,
       cf.formulas.discountedCashFlow,
-      cf.formulas.cumulativeDiscountedCF,
     ]);
   }
 
@@ -129,73 +125,76 @@ export function exportToExcel(result: SimulationResult) {
   XLSX.utils.book_append_sheet(wb, wsFormulas, 'Formulas (Audit)');
 
   // Sheet 4: Input Assumptions
-  const inputSections = [
+  const inputSections: any[][] = [
     ['PRODUCTION ASSUMPTIONS'],
-    ['Parameter', 'Value', 'Unit'],
-    ['Initial Rate', inputs.production.initialRate, 'boe/day'],
-    ['Decline Rate', inputs.production.declineRate, '%/year'],
-    ['Decline Type', inputs.production.declineType, ''],
-    ['Hyperbolic Exponent', inputs.production.hyperbolicExponent, ''],
-    ['Economic Limit', inputs.production.minRate, 'boe/day'],
+    ['Parameter', 'P10', 'P50', 'P90', 'Distribution'],
+    ['Oil Rate (bopd)', inputs.production.oil.p10, inputs.production.oil.p50, inputs.production.oil.p90, inputs.production.oil.distribution],
+    ['Decline Rate (%/yr)', inputs.production.declineRate.p10, inputs.production.declineRate.p50, inputs.production.declineRate.p90, inputs.production.declineRate.distribution],
+    ['Recovery Factor', inputs.production.recoveryFactor.p10, inputs.production.recoveryFactor.p50, inputs.production.recoveryFactor.p90, inputs.production.recoveryFactor.distribution],
+    ['GOR (scf/bbl)', inputs.production.gor],
+    ['WOR (bbl/bbl)', inputs.production.wor],
+    ['Plateau Years', inputs.production.plateauYears],
+    ['Decline Type', inputs.production.declineType],
     [''],
     ['PRICE ASSUMPTIONS'],
-    ['Parameter', 'Value', 'Std Dev %', 'Escalation %/yr'],
-    ['Oil Price', inputs.prices.oilPrice, inputs.prices.oilPriceStdDev, inputs.prices.oilEscalation],
-    ['Gas Price', inputs.prices.gasPrice, inputs.prices.gasPriceStdDev, inputs.prices.gasEscalation],
-    ['NGL Price', inputs.prices.nglPrice, inputs.prices.nglPriceStdDev, inputs.prices.nglEscalation],
-    ['Oil/Gas Ratio', inputs.prices.oilGasRatio, '', ''],
-    ['NGL Ratio', inputs.prices.nglRatio, '', ''],
-    [''],
-    ['COST ASSUMPTIONS'],
-    ['Parameter', 'Value', 'Std Dev %', 'Escalation %/yr'],
-    ['Opex', inputs.costs.opexPerBarrel, inputs.costs.opexStdDev, inputs.costs.opexEscalation],
-    ['Fixed Opex', inputs.costs.fixedOpex, '', ''],
-    ['Transportation', inputs.costs.transportationCost, '', ''],
-    ['Severance Tax Rate', inputs.costs.severanceTaxRate, '', ''],
-    ['Ad Valorem Tax Rate', inputs.costs.adValoremTaxRate, '', ''],
+    ['Commodity', 'Base', 'Escalation %/yr', 'Std Dev %', 'Distribution'],
+    ['Oil ($/bbl)', inputs.prices.oil.base, inputs.prices.oil.escalation, inputs.prices.oil.stdDev, inputs.prices.oil.distribution],
+    ['Gas ($/Mcf)', inputs.prices.gas.base, inputs.prices.gas.escalation, inputs.prices.gas.stdDev, inputs.prices.gas.distribution],
+    ['NGL ($/bbl)', inputs.prices.ngl.base, inputs.prices.ngl.escalation, inputs.prices.ngl.stdDev, inputs.prices.ngl.distribution],
     [''],
     ['CAPEX ASSUMPTIONS'],
-    ['Parameter', 'Value', 'Std Dev %'],
-    ['Initial Capex', inputs.capex.initialCapex, inputs.capex.capexStdDev],
-    ['Workover Capex', inputs.capex.workoverCapex, ''],
-    ['Workover Frequency', inputs.capex.workoverFrequency, 'years'],
-    ['Abandonment Cost', inputs.capex.abandonmentCost, ''],
-    ['Salvage Value', inputs.capex.salvageValue, ''],
+    ['Category', 'Amount ($)', 'Std Dev %'],
+    ['Exploration', inputs.capex.exploration, inputs.capex.totalCapexStdDev],
+    ['Drilling', inputs.capex.drilling],
+    ['Facilities', inputs.capex.facilities],
+    ['Pipelines', inputs.capex.pipelines],
+    ['Workovers', inputs.capex.workovers],
+    ['Abandonment', inputs.capex.abandonment],
+    ['Decommissioning', inputs.capex.decommissioning],
+    ['Contingency', inputs.capex.contingency],
+    [''],
+    ['OPEX ASSUMPTIONS'],
+    ['Category', 'Base Value', 'Escalation %/yr', 'Std Dev %'],
+    ['Fixed Opex ($/yr)', inputs.opex.fixedOpex, inputs.opex.inflationRate, inputs.opex.totalOpexStdDev],
+    ['Variable Opex ($/bbl)', inputs.opex.variableOpex],
+    ['Transportation ($/bbl)', inputs.opex.transportation],
+    ['Carbon Cost ($/bbl)', inputs.opex.carbonCost],
     [''],
     ['FISCAL REGIME'],
     ['Parameter', 'Value', 'Unit'],
-    ['Discount Rate (WACC)', inputs.fiscal.discountRate, '%'],
-    ['Income Tax Rate', inputs.fiscal.incomeTaxRate, '%'],
     ['Royalty Rate', inputs.fiscal.royaltyRate, '%'],
-    ['Depreciation Method', inputs.fiscal.depreciationMethod, ''],
+    ['OIDB Cess', inputs.fiscal.oidbCess, '%'],
+    ['Corporate Tax Rate', inputs.fiscal.corporateTaxRate, '%'],
+    ['Tax Holiday', inputs.fiscal.taxHolidayYears, 'years'],
+    ['Depreciation Method', inputs.fiscal.depreciationMethod],
     ['Depreciation Years', inputs.fiscal.depreciationYears, 'years'],
-    ['Working Interest', inputs.fiscal.workingInterest, '%'],
-    ['Net Revenue Interest', inputs.fiscal.netRevenueInterest, '%'],
+    ['WDV Rate', inputs.fiscal.wdvRate, '%'],
   ];
 
   const wsInputs = XLSX.utils.aoa_to_sheet(inputSections);
-  wsInputs['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 18 }];
+  wsInputs['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
   XLSX.utils.book_append_sheet(wb, wsInputs, 'Input Assumptions');
 
-  // Sheet 5: Tornado Analysis
-  const tornadoData: any[][] = [
+  // Sheet 5: Tornado
+  const tornadoSheet: any[][] = [
     ['TORNADO ANALYSIS - Sensitivity Ranking'],
     [''],
-    ['Parameter', 'Low NPV ($)', 'High NPV ($)', 'Swing ($)', 'Rank'],
+    ['Parameter', 'Low NPV ($)', 'High NPV ($)', 'Swing ($)', '% Change', 'Rank'],
   ];
   
-  result.tornadoData.forEach((item, idx) => {
-    tornadoData.push([
+  tornadoData.forEach((item, idx) => {
+    tornadoSheet.push([
       item.parameter,
       Math.round(item.lowValue),
       Math.round(item.highValue),
       Math.round(item.impact),
+      `${item.percentChange}%`,
       idx + 1,
     ]);
   });
 
-  const wsTornado = XLSX.utils.aoa_to_sheet(tornadoData);
-  wsTornado['!cols'] = [{ wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 8 }];
+  const wsTornado = XLSX.utils.aoa_to_sheet(tornadoSheet);
+  wsTornado['!cols'] = [{ wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, wsTornado, 'Tornado Analysis');
 
   // Sheet 6: NPV Distribution
@@ -210,8 +209,8 @@ export function exportToExcel(result: SimulationResult) {
     const binEnd = binStart + binWidth;
     const count = result.npvValues.filter(v => v >= binStart && v < binEnd).length;
     distData.push([
-      Math.round(binStart / 1000000 * 100) / 100,
-      Math.round(binEnd / 1000000 * 100) / 100,
+      Math.round(binStart / 1e6 * 100) / 100,
+      Math.round(binEnd / 1e6 * 100) / 100,
       count,
       Math.round(count / result.npvValues.length * 10000) / 100,
     ]);
@@ -221,63 +220,5 @@ export function exportToExcel(result: SimulationResult) {
   wsDist['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 }];
   XLSX.utils.book_append_sheet(wb, wsDist, 'NPV Distribution');
 
-  // Generate file
-  XLSX.writeFile(wb, `EP_NPV_MonteCarlo_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
-
-export function exportFormulasOnly(result: SimulationResult) {
-  const { cashFlowsWithFormulas, inputs } = result;
-  
-  // Create a workbook with actual Excel formulas
-  const wb = XLSX.utils.book_new();
-  
-  // Build formula-based sheet
-  const headers = [
-    'Year', 'Prod Rate (boe/d)', 'Annual Prod (boe)', 'Oil Revenue ($)', 'Gas Revenue ($)',
-    'NGL Revenue ($)', 'Gross Revenue ($)', 'Royalty ($)', 'Net Revenue ($)',
-    'Opex ($)', 'Transportation ($)', 'Severance Tax ($)', 'Ad Valorem Tax ($)',
-    'EBITDA ($)', 'Capex ($)', 'Depreciation ($)', 'Taxable Income ($)',
-    'Income Tax ($)', 'Net Cash Flow ($)', 'Cumulative CF ($)',
-    'Discount Factor', 'Discounted CF ($)', 'Cumulative DCF ($)'
-  ];
-
-  const data: any[][] = [headers];
-  
-  for (let i = 0; i < cashFlowsWithFormulas.length; i++) {
-    const cf = cashFlowsWithFormulas[i];
-    const row = i + 2; // Excel row (1-indexed, +1 for header)
-    const prevRow = row - 1;
-    
-    data.push([
-      cf.year + 1,
-      { f: cf.formulas.productionRate },
-      { f: cf.formulas.annualProduction },
-      { f: cf.formulas.oilRevenue },
-      { f: cf.formulas.gasRevenue },
-      { f: cf.formulas.nglRevenue },
-      { f: cf.formulas.grossRevenue },
-      { f: cf.formulas.royalty },
-      { f: cf.formulas.netRevenue },
-      { f: cf.formulas.opex },
-      { f: cf.formulas.transportation },
-      { f: cf.formulas.severanceTax },
-      { f: cf.formulas.adValoremTax },
-      { f: cf.formulas.ebitda },
-      { f: cf.formulas.capex },
-      { f: cf.formulas.depreciation },
-      { f: cf.formulas.taxableIncome },
-      { f: cf.formulas.incomeTax },
-      { f: cf.formulas.netCashFlow },
-      { f: cf.formulas.cumulativeCashFlow },
-      { f: cf.formulas.discountFactor },
-      { f: cf.formulas.discountedCashFlow },
-      { f: cf.formulas.cumulativeDiscountedCF },
-    ]);
-  }
-
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = headers.map(() => ({ wch: 18 }));
-  XLSX.utils.book_append_sheet(wb, ws, 'DCF Model (Formulas)');
-  
-  XLSX.writeFile(wb, `EP_DCF_Formulas_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `EP_Enterprise_NPV_MonteCarlo_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
